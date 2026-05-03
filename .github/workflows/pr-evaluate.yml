@@ -1,7 +1,10 @@
 name: PR Golden Evaluation
 
 on:
-  pull_request:
+  # pull_request_target 讓 fork 來的 cross-repo PR 也能拿到 secrets（GEMINI_API_KEY）
+  # 與 write 權限（post comment）。代價是會跑 PR head 的 code，所以這個 repo
+  # 應只接 trusted contributors 的 PR（學生課堂用途，可接受）。
+  pull_request_target:
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -14,8 +17,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout PR
+      - name: Checkout PR head
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
