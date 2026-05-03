@@ -146,6 +146,9 @@ def handle_image_message(image_bytes: bytes) -> str:
     if not name:
         return "辨識失敗：回傳缺少地點名稱"
 
+    if name == "unknown":
+        return "這張照片不像虎尾的 18 個地標 🤔\n要不要再傳一張地標的照片給我？"
+
     # Stage 2：用 data source 撈完整 row，再讓 Gemini 組人話
     try:
         row = pipeline.data_source.by_key(name)
