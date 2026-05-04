@@ -143,11 +143,10 @@ def handle_image_message(image_bytes: bytes) -> str:
         return f"辨識失敗：{result['error']}"
 
     name = result.get("name", "").strip()
+    if name == "unknown":
+        return "哎呀，這張我認不太出來是虎尾的地標耶 😅 再傳一張地標的照片給我看看？我對虎尾的 18 個地標比較有把握 📸"
     if not name:
         return "辨識失敗：回傳缺少地點名稱"
-
-    if name == "unknown":
-        return "這張照片不像虎尾的 18 個地標 🤔\n要不要再傳一張地標的照片給我？"
 
     # Stage 2：用 data source 撈完整 row，再讓 Gemini 組人話
     try:
