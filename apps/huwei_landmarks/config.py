@@ -86,6 +86,9 @@ def build_pipeline(api_key: str | None = None, csv_path: str | None = None) -> R
         api_key=api_key,
         prompt_builder=build_prompt,
         model="gemini-2.5-flash",
+        # 條件性多模態:Sheet 有填 reference_photo_url 的 row 才下載比圖
+        reference_photo_column=schema.REFERENCE_PHOTO_COLUMN,
+        key_column=schema.KEY_COLUMN,
     )
     return RAGPipeline(
         data_source=data_source,

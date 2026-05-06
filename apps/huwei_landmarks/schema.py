@@ -10,11 +10,12 @@ COL_STRUCT = "建築結構 (struct)"
 COL_MATERIAL = "材質 (material)"
 COL_FUNCTION = "功能用途 (function)"
 COL_SUMMARY = "簡介 (summary)"
+COL_REFERENCE_PHOTO = "reference_photo_url (參考照片)"
 
 # 主鍵欄位
 KEY_COLUMN = COL_NAME
 
-# 所有供 Retriever/Generator 用的特徵欄位
+# 所有供 Retriever/Generator 用的特徵欄位（純文字渲染進 prompt）
 FEATURE_COLUMNS = [
     ("style", COL_STYLE, "風格"),
     ("struct", COL_STRUCT, "結構"),
@@ -22,6 +23,9 @@ FEATURE_COLUMNS = [
     ("function", COL_FUNCTION, "用途"),
     ("summary", COL_SUMMARY, "簡介"),
 ]
+
+# 參考照片欄位（不在 FEATURE_COLUMNS 裡 — 不渲染為文字、改成 inline image）
+REFERENCE_PHOTO_COLUMN = COL_REFERENCE_PHOTO
 
 # summary 截斷長度（避免 prompt 過長）
 SUMMARY_MAX_LEN = 120
