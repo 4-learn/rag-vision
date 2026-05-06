@@ -186,6 +186,34 @@ def render_markdown(summary: dict) -> str:
     return "\n".join(lines)
 
 
+def _validate_filenames_against_sheet(photos: list[Path], pipeline) -> None:
+    """確保每張 golden 照片的 expected 都對應到 Sheet 上某個 row。
+
+    避免「BOT 答對但測試說錯」 — 因為檔名跟 Sheet name 不同步、
+    LLM 永遠選不到那個 expected 名稱。
+    """
+    sheet_names = {
+        (row.get("地點名稱 (name)") or "").strip()
+        for row in pipeline.data_source.all_rows()
+    }
+    sheet_names.discard("")
+
+    bad = []
+    for p in photos:
+        exp = expected_from_filename(p.name)
+        if exp and exp not in sheet_names:
+            bad.append(f"  - {p.name}: expected '{exp}' 不在 Sheet")
+
+    if bad:
+        msg = (
+            "❌ Golden fixture 跟 Sheet 名稱不一致:\n"
+            + "\n".join(bad)
+            + "\n\n→ 把照片改名跟 Sheet 對齊,或在 Sheet 加對應 row。"
+            + "\n  (LLM 只能從 Sheet 18 個 row 選,選不到 Sheet 沒有的名字 → 永遠失敗)"
+        )
+        raise SystemExit(msg)
+
+
 def evaluate(limit: int, api_key: str | None) -> dict:
     photos = list_golden_photos(GOLDEN_DIR)
     selected = select_photos(photos, limit)
@@ -202,6 +230,7 @@ def evaluate(limit: int, api_key: str | None) -> dict:
         }
 
     pipeline = build_pipeline(api_key=api_key)
+    _validate_filenames_against_sheet(selected, pipeline)
     results = [run_one(pipeline, p) for p in selected]
 
     total = len(results)
