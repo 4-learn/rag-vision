@@ -10,6 +10,8 @@ COL_STRUCT = "建築結構 (struct)"
 COL_MATERIAL = "材質 (material)"
 COL_FUNCTION = "功能用途 (function)"
 COL_SUMMARY = "簡介 (summary)"
+COL_CATEGORY = "分類"
+COL_OPENING = "開口形式"
 COL_REFERENCE_PHOTO = "reference_photo_url (參考照片)"
 
 # 主鍵欄位
@@ -17,9 +19,11 @@ KEY_COLUMN = COL_NAME
 
 # 所有供 Retriever/Generator 用的特徵欄位（純文字渲染進 prompt）
 FEATURE_COLUMNS = [
+    ("category", COL_CATEGORY, "分類"),
     ("style", COL_STYLE, "風格"),
     ("struct", COL_STRUCT, "結構"),
     ("material", COL_MATERIAL, "材質"),
+    ("opening", COL_OPENING, "開口形式"),
     ("function", COL_FUNCTION, "用途"),
     ("summary", COL_SUMMARY, "簡介"),
 ]

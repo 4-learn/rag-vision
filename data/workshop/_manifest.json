@@ -1,0 +1,30 @@
+[
+  {
+    "n": 1,
+    "row": "台糖糖蜜罐車展示（虎尾糖廠）",
+    "fname": "workshop-01-台糖火車.jpg",
+    "diff": "🟢 易",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/0/08/Taisugar_No.143_diesel_locomotive_hauling_sugar_cane_train_toward_the_Huwei_Sugar_Factory.jpg"
+  },
+  {
+    "n": 2,
+    "row": "虎尾糖廠",
+    "fname": "workshop-02-糖廠廠內.jpg",
+    "diff": "🟡 中",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/7/75/Scene_in_Huwei_Sugar_Factory_03.jpg"
+  },
+  {
+    "n": 3,
+    "row": "涌翠閣",
+    "fname": "workshop-03-涌翠閣庭園.jpg",
+    "diff": "🟡 中",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/5/56/%E6%B6%8C%E7%BF%A0%E4%BA%AD_-_Yongcui_Pavilion_-_2011.07_-_panoramio.jpg"
+  },
+  {
+    "n": 4,
+    "row": "雲林地區虎尾溪流域",
+    "fname": "workshop-04-虎尾溪河岸.jpg",
+    "diff": "🔴 難",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/1/17/At_the_bank_of_Huwei_River_near_Huwei_Sugar_Factory.jpg"
+  }
+]

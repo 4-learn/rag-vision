@@ -15,7 +15,7 @@ from . import schema
 # 虎尾地標 Google Sheet 的公開 CSV export URL
 DEFAULT_SHEET_CSV_URL = (
     "https://docs.google.com/spreadsheets/d/"
-    "1Xcvnj35efvDa1anm7ojOAwRUv6n7hKVhN8UTpb4Fmf8/export?format=csv"
+    "1Kl4cm_3kFgPpNg4FPXKu-PWtNO0HtVVCZqcYIY_aF8M/export?format=csv"
 )
 
 
