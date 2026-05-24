@@ -10,11 +10,29 @@ services:
       - path: .env
         required: false
     environment:
-      # 預設值可被 .env 覆寫
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # Ch5: SQLite 寫到 mounted volume，container 重建不會清掉 session
+      RAG_KIT_DATA_DIR: /app/data
+    volumes:
+      - ./data:/app/data
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/healthz\", timeout=3)'"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # Ch5: 每分鐘掃 idle 超時的 session，標記結束 + push 告別訊息
+  session-timeout-scanner:
+    image: curlimages/curl:8.10.1
+    container_name: huwei-landmarks-timeout-scanner
+    restart: unless-stopped
+    depends_on:
+      - line-bot
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          curl -fsS -X POST http://line-bot:8000/tasks/scan-timeouts > /dev/null 2>&1 || true
+          sleep 60
+        done

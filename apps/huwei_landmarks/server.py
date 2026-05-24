@@ -33,14 +33,23 @@ from linebot.v3.messaging import (
     Configuration,
     MessagingApi,
     MessagingApiBlob,
+    PushMessageRequest,
     ReplyMessageRequest,
     TextMessage,
 )
-from linebot.v3.webhooks import ImageMessageContent, MessageEvent
+from linebot.v3.webhooks import ImageMessageContent, MessageEvent, TextMessageContent
 
 from . import line_bot
+from . import session_manager
+from .db import init_db
+from .system_prompt import (
+    GOODBYE_TIMEOUT,
+    GOODBYE_USER_INITIATED,
+    is_end_keyword,
+)
 
 load_dotenv()
+init_db()
 
 logger = logging.getLogger("huwei_landmarks.server")
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -64,7 +73,7 @@ def _gemini_key() -> str:
     )
 
 
-UNSUPPORTED_MESSAGE = "目前只支援圖片訊息，請傳一張地標照片給我 📷"
+UNSUPPORTED_MESSAGE = "我看不懂這種訊息耶 🤔 你可以傳文字跟我聊、或傳一張地標照片給我認"
 
 
 # ---------- FastAPI App ----------
@@ -102,6 +111,36 @@ async def root() -> dict:
 @app.get("/healthz")
 async def healthz() -> PlainTextResponse:
     return PlainTextResponse("ok")
+
+
+@app.post("/tasks/scan-timeouts")
+async def scan_timeouts() -> dict:
+    """Ch5：掃所有 idle 超過 SESSION_TIMEOUT_MINUTES 的 active session，
+    標記結束 + push「告別訊息」給 user。
+
+    部署方式：用 docker-compose 內的 cron container 每分鐘 POST 一次此端點。
+    （不放 internal scheduler、避免跟 uvicorn worker count 互動）
+    """
+    timed_out = session_manager.find_timed_out_sessions()
+    if not timed_out:
+        return {"ended": 0, "users": []}
+
+    pushed_users: list[str] = []
+    config = _get_messaging_config()
+    with ApiClient(config) as api_client:
+        messaging_api = MessagingApi(api_client)
+        for sess in timed_out:
+            session_manager.end_session(sess.id, "timeout")
+            try:
+                messaging_api.push_message(
+                    PushMessageRequest(to=sess.user_id, messages=[TextMessage(text=GOODBYE_TIMEOUT)])
+                )
+                pushed_users.append(sess.user_id)
+            except Exception:  # noqa: BLE001
+                # push 失敗（user block / LINE API 503） — log 後繼續
+                logger.exception("push goodbye to %s failed", sess.user_id)
+
+    return {"ended": len(timed_out), "users": pushed_users}
 
 
 @app.post("/webhook")
@@ -160,9 +199,37 @@ def _handle_event(
         _handle_image_event(message.id, reply_token, blob_api, messaging_api)
         return
 
-    # 非圖片訊息 — 禮貌回覆一句，讓使用者知道怎麼用
+    if isinstance(message, TextMessageContent):
+        user_id = getattr(event.source, "user_id", None) or "unknown"
+        _handle_text_event(user_id, message.text, reply_token, messaging_api)
+        return
+
+    # 其他類型（sticker / location / audio…） — 禮貌回一句
     logger.info("Received unsupported message type: %s", type(message).__name__)
     _reply_text(messaging_api, reply_token, UNSUPPORTED_MESSAGE)
+
+
+def _handle_text_event(
+    user_id: str,
+    text: str,
+    reply_token: Optional[str],
+    messaging_api: MessagingApi,
+) -> None:
+    """Ch5：文字訊息 → session 管理 + LLM 對話。
+
+    流程：
+    1. 結束關鍵字 → end_session + 告別訊息（reply）
+    2. 否則 → session_manager.chat() → 回覆
+    """
+    if is_end_keyword(text):
+        sess = session_manager.get_active_session(user_id)
+        if sess is not None:
+            session_manager.end_session(sess.id, "user")
+        _reply_text(messaging_api, reply_token, GOODBYE_USER_INITIATED)
+        return
+
+    reply_text = session_manager.chat(user_id, text)
+    _reply_text(messaging_api, reply_token, reply_text)
 
 
 def _handle_image_event(

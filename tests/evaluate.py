@@ -43,12 +43,31 @@ PREFERRED_LANDMARKS = [
 
 EXPECTED_RE = re.compile(r"^(.+?)-\d")
 
+# Optional aliases: 把檔名前綴對應到目前 Sheet 上的 row name。
+# - key = filename prefix (例: "雲林故事館")
+# - value = Sheet 上 row name (例: "虎尾郡守官邸（雲林故事館）")
+# - value = null/None → row 已刪,該照片跳過、不算分。
+# Sheet 改名時編這個 json,不用改 evaluate.py、不用 rename 照片。
+_ALIASES_PATH = Path(__file__).resolve().parent.parent / "data" / "golden" / "_aliases.json"
+try:
+    _ALIASES: dict[str, str | None] = json.loads(_ALIASES_PATH.read_text(encoding="utf-8"))
+except FileNotFoundError:
+    _ALIASES = {}
+
 
 def expected_from_filename(name: str) -> str | None:
-    """從 `虎尾驛-1-wiki.jpg` 取出 `虎尾驛`。"""
+    """從 `虎尾驛-1-wiki.jpg` 取出 expected row name(套 alias)。
+
+    回傳 None 代表「跳過此照片(對應 row 已刪 or 無前綴)」。
+    """
     stem = Path(name).stem
     m = EXPECTED_RE.match(stem)
-    return m.group(1) if m else None
+    if not m:
+        return None
+    raw = m.group(1)
+    if raw in _ALIASES:
+        return _ALIASES[raw]  # 可能是 None (跳過)
+    return raw
 
 
 def list_golden_photos(golden_dir: Path) -> list[Path]:
@@ -111,7 +130,19 @@ def mime_type_for(path: Path) -> str:
 
 
 def run_one(pipeline, photo: Path) -> dict:
-    expected = expected_from_filename(photo.name) or ""
+    expected_raw = expected_from_filename(photo.name)
+    # alias mapped to None → 不評分,標記 skipped
+    if expected_raw is None and EXPECTED_RE.match(Path(photo.name).stem):
+        return {
+            "photo": photo.name,
+            "expected": None,
+            "got": "",
+            "ok": False,
+            "skipped": True,
+            "latency_seconds": 0.0,
+            "error": "skipped (alias = null, Sheet row 已刪)",
+        }
+    expected = expected_raw or ""
     mime = mime_type_for(photo)
     started = time.monotonic()
     got = ""
@@ -201,6 +232,8 @@ def _validate_filenames_against_sheet(photos: list[Path], pipeline) -> None:
     bad = []
     for p in photos:
         exp = expected_from_filename(p.name)
+        if exp is None:
+            continue  # alias = None 或無前綴 → 跳過
         if exp and exp not in sheet_names:
             bad.append(f"  - {p.name}: expected '{exp}' 不在 Sheet")
 
@@ -208,8 +241,8 @@ def _validate_filenames_against_sheet(photos: list[Path], pipeline) -> None:
         msg = (
             "❌ Golden fixture 跟 Sheet 名稱不一致:\n"
             + "\n".join(bad)
-            + "\n\n→ 把照片改名跟 Sheet 對齊,或在 Sheet 加對應 row。"
-            + "\n  (LLM 只能從 Sheet 18 個 row 選,選不到 Sheet 沒有的名字 → 永遠失敗)"
+            + "\n\n→ 編 data/golden/_aliases.json 加入映射 (filename前綴 → Sheet row name),"
+            + "\n  或把 row 刪掉的對應到 null 跳過該照片。"
         )
         raise SystemExit(msg)
 
