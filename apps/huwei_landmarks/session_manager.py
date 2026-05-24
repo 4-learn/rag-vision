@@ -138,6 +138,23 @@ def chat(user_id: str, user_text: str) -> str:
     return reply
 
 
+def write_image_turn(session_id: int, identification_reply: str) -> None:
+    """把「使用者剛剛傳了張圖、bot 認出 / 回覆內容」這對話寫進 session。
+
+    用途：圖片流程跟文字流程共用 session，後續文字對話 (chat()) 才能看到
+    使用者剛剛傳了什麼圖、bot 認出來什麼地標。
+
+    寫兩筆 message：
+    - role=user, content="[使用者傳了一張地標照片給你看]"
+    - role=assistant, content=圖片辨識的回覆（line_bot.handle_image_message 的 return）
+
+    這樣下一輪 chat() 拿 history 時，LLM 看得到「我剛剛認過某地標」的上下文。
+    """
+    _add_message(session_id, "user", "[使用者傳了一張地標照片給你看]")
+    _add_message(session_id, "assistant", identification_reply)
+    _touch_session(session_id)
+
+
 # ────────────────────────────────────────────────────────────
 # Internals
 # ────────────────────────────────────────────────────────────

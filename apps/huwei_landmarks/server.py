@@ -195,12 +195,13 @@ def _handle_event(
     message = event.message
     reply_token = event.reply_token
 
+    user_id = getattr(event.source, "user_id", None) or "unknown"
+
     if isinstance(message, ImageMessageContent):
-        _handle_image_event(message.id, reply_token, blob_api, messaging_api)
+        _handle_image_event(user_id, message.id, reply_token, blob_api, messaging_api)
         return
 
     if isinstance(message, TextMessageContent):
-        user_id = getattr(event.source, "user_id", None) or "unknown"
         _handle_text_event(user_id, message.text, reply_token, messaging_api)
         return
 
@@ -233,6 +234,7 @@ def _handle_text_event(
 
 
 def _handle_image_event(
+    user_id: str,
     message_id: str,
     reply_token: str,
     blob_api: MessagingApiBlob,
@@ -241,6 +243,16 @@ def _handle_image_event(
     image_bytes = _download_image(blob_api, message_id)
     reply_text = line_bot.handle_image_message(image_bytes)
     _reply_text(messaging_api, reply_token, reply_text)
+
+    # Ch5：圖片辨識結果也寫進 session、讓後續文字對話能 reference 到。
+    # 例：使用者傳圖認出虎尾驛 → 接著問「它附近有什麼？」 bot 能接住「它」=虎尾驛。
+    try:
+        sess = session_manager.get_active_session(user_id) or session_manager.start_session(user_id)
+        # 用人話描述「使用者傳了圖」，讓 LLM 後續能看懂上下文
+        session_manager.write_image_turn(sess.id, reply_text)
+    except Exception:  # noqa: BLE001
+        # session 寫失敗不應影響圖片辨識回覆（已經 reply 給使用者了）
+        logger.exception("write image turn into session failed for user %s", user_id)
 
 
 def _download_image(blob_api: MessagingApiBlob, message_id: str) -> bytes:
